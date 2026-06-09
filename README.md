@@ -1,5 +1,7 @@
 # Delgaz Watcher
 
+A small Rust (for practice) program that checks Delgaz API for outages and calculates proximity to a predefined location to determine how likely is to be affected. Uses MQTT for communication for an easy integration with Home Assistant
+
 ## Tech Stack / Dependencies
 
 - Rust (learning)
