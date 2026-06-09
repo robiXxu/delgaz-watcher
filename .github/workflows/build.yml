@@ -5,15 +5,42 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: delgaz-watcher-build-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/delgaz-watcher
 
 jobs:
   docker:
     runs-on: ubuntu-latest
 
     steps:
+
+       - name: Free disk space
+        run: |
+          echo "Before cleanup:"
+          df -h
+
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /opt/hostedtoolcache/Python || true
+          sudo rm -rf /opt/hostedtoolcache/node || true
+          sudo rm -rf /opt/hostedtoolcache/go || true
+          sudo rm -rf /opt/az || true
+          sudo docker system prune -af || true
+
+          echo "After cleanup:"
+          df -h
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -24,11 +51,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push amd64 image
+        uses: docker/build-push-action@v7
         with:
           context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
           push: true
+          build-args: |
+            BUILD_JOBS=2
           tags: |
-            ghcr.io/${{ env.IMAGE_NAME }}:latest
-            ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_NAME_LC }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
