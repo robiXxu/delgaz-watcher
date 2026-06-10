@@ -37,7 +37,7 @@ services:
       MAX_RADIUS: "2000" # meters
       MQTT_CLIENT_ID: "delgaz-watcher"
       MQTT_URL: "mqtt://10.10.10.10:1883"
-      MQTT_TOPIC: "homeassistant/sensor/delgaz_watcher/state"
+      MQTT_TOPIC: "homeassistant/sensor/delgaz_watcher"
 ```
 
 If there's no mqtt service running they can be created as part of the same `docker-compose`
@@ -68,7 +68,7 @@ services:
       MAX_RADIUS: "2000" # meters
       MQTT_CLIENT_ID: "delgaz-watcher"
       MQTT_URL: "mqtt://mqtt:1883"
-      MQTT_TOPIC: "homeassistant/sensor/delgaz_watcher/state"
+      MQTT_TOPIC: "homeassistant/sensor/delgaz_watcher"
 
 volumes:
   mosquitto_data:
