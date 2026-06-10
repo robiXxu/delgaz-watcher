@@ -222,7 +222,7 @@ impl MqttPublisher {
                 self.client.publish(format!("{}/raw", &self.config.topic), payload.unwrap()).await?;
 
                 let publish_options = mqtt5::PublishOptions {
-                    qos: mqtt5::QoS::AtMostOnce,
+                    qos: mqtt5::QoS::AtLeastOnce,
                     retain: true,
                     properties: mqtt5::PublishProperties {
                         payload_format_indicator: None,
