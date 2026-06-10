@@ -6,6 +6,11 @@ const API_URL: &str = "https://om.eonsn.ro/api/outages";
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
+    let max_radius: f64 = env::var("MAX_RADIUS")
+        .unwrap_or_else(|_| "2000.0".to_string())
+        .parse::<f64>()
+        .unwrap_or(2000.0);
+
     let sleep_duration: u64 = env::var("SLEEP_DURATION")
         .unwrap_or_else(|_| "1".to_string())
         .parse::<u64>()
@@ -32,6 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         Ok(v) => v,
         _ => String::from("mqtt://10.10.10.10:1883")
     };
+
     let topic: String = match env::var("MQTT_TOPIC") {
         Ok(v) => v,
         _ => String::from("homeassistant/sensor/delgaz_watcher/state")
@@ -53,8 +59,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 .json::<Vec<Outage>>()
                 .await?;
 
+            let outages_within_max_radius: Vec<Outage> = outages
+                .into_iter()
+                .filter(|outage| {
+                    let outage_location = Coordinate {
+                        latitude: outage.latitude,
+                        longitude: outage.longitude,
+                    };
+                    watch_location.within_radius(&outage_location, max_radius)
+                }).collect();
 
-            let report = Report::new(&watch_location, outages);
+            let report = Report::new(&watch_location, outages_within_max_radius);
 
             println!("{:#?}", report);
 

@@ -33,8 +33,8 @@ services:
     environment:
       LATITUDE: "47.639379270884255"
       LONGITUDE: "26.240727718597064"
-      SLEEP_DURATION: "60"
-
+      SLEEP_DURATION: "5" # minutes
+      MAX_RADIUS: "2000" # meters
       MQTT_CLIENT_ID: "delgaz-watcher"
       MQTT_URL: "mqtt://10.10.10.10:1883"
       MQTT_TOPIC: "homeassistant/sensor/delgaz_watcher/state"
@@ -64,8 +64,8 @@ services:
     environment:
       LATITUDE: "47.639379270884255"
       LONGITUDE: "26.240727718597064"
-      SLEEP_DURATION: "60"
-
+      SLEEP_DURATION: "5" # minutes
+      MAX_RADIUS: "2000" # meters
       MQTT_CLIENT_ID: "delgaz-watcher"
       MQTT_URL: "mqtt://mqtt:1883"
       MQTT_TOPIC: "homeassistant/sensor/delgaz_watcher/state"
