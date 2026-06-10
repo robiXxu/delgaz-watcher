@@ -44,6 +44,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v5
 
+      - name: Lowercase image name
+        run: |
+          echo "IMAGE_NAME_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
