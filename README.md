@@ -26,7 +26,7 @@ LATITUDE=47.639379270884255 LONGITUDE=26.240727718597064 delgaz-watcher
 ```Dockerfile
 services:
   delgaz-watcher:
-    image: ghcr.io/robiXxu/delgaz-watcher:latest
+    image: ghcr.io/robixxu/delgaz-watcher:latest
     container_name: delgaz-watcher
     restart: unless-stopped
 
@@ -56,7 +56,7 @@ services:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
 
   delgaz-watcher:
-    image: ghcr.io/YOUR_USERNAME/delgaz-watcher:latest
+    image: ghcr.io/robixxu/delgaz-watcher:latest
     container_name: delgaz-watcher
     restart: unless-stopped
     depends_on:
