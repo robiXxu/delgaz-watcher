@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let topic: String = match env::var("MQTT_TOPIC") {
         Ok(v) => v,
-        _ => String::from("homeassistant/sensor/delgaz_watcher/state")
+        _ => String::from("homeassistant/sensor/delgaz_watcher")
     };
 
 

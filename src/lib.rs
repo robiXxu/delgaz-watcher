@@ -125,6 +125,7 @@ pub struct Report {
     pub total_outages: u8,
     pub nearest_distance_m: Option<f64>,
     pub nearest_proximity: Option<&'static str>,
+    pub nearest_street: Option<String>,
     pub nearest: Option<OutageReport>,
     pub outages: Vec<OutageReport>,
     pub generated_at: DateTime<Utc>,
@@ -135,6 +136,7 @@ impl Report {
         let total_outages = outages.len() as u8;
         let mut nearest_distance_m: Option<f64> = None;
         let mut nearest_proximity: Option<&'static str> = None;
+        let mut nearest_street: Option<String> = None;
         let mut nearest: Option<OutageReport> = None;
 
         let outage_reports: Vec<OutageReport> = outages
@@ -149,6 +151,8 @@ impl Report {
                 {
                     nearest_distance_m = Some(proximity.distance_m());
                     nearest_proximity = Some(proximity.label());
+                    nearest_street = Some(o.street.clone());
+
                     nearest = Some(OutageReport {
                         country: o.county.clone(),
                         locality: o.locality.clone(),
@@ -179,6 +183,7 @@ impl Report {
             total_outages,
             nearest_distance_m,
             nearest_proximity,
+            nearest_street,
             nearest,
             outages: outage_reports,
             generated_at: Utc::now(),
@@ -214,7 +219,28 @@ impl MqttPublisher {
                 _ => None,
             };
             if !payload.is_none() {
-                self.client.publish(&self.config.topic, payload.unwrap()).await?;
+                self.client.publish(format!("{}/raw", &self.config.topic), payload.unwrap()).await?;
+
+                let publish_options = mqtt5::PublishOptions {
+                    qos: mqtt5::QoS::AtMostOnce,
+                    retain: true,
+                    properties: mqtt5::PublishProperties {
+                        payload_format_indicator: None,
+                        message_expiry_interval: None,
+                        topic_alias: None,
+                        response_topic: None,
+                        correlation_data: None,
+                        user_properties: Vec::new(),
+                        subscription_identifiers: Vec::new(),
+                        content_type: None
+                    },
+                    skip_codec: true
+                };
+
+                self.client.publish_with_options(format!("{}/total_outages", &self.config.topic), serde_json::to_string(&report.total_outages).unwrap(), publish_options.clone()).await?;
+                self.client.publish_with_options(format!("{}/nearest_distance_m", &self.config.topic), serde_json::to_string(&report.nearest_distance_m).unwrap(), publish_options.clone()).await?;
+                self.client.publish_with_options(format!("{}/nearest_proximity", &self.config.topic), serde_json::to_string(&report.nearest_proximity).unwrap(), publish_options.clone()).await?;
+                self.client.publish_with_options(format!("{}/nearest_street", &self.config.topic), serde_json::to_string(&report.nearest_street).unwrap(), publish_options).await?;
             }
         }
 
