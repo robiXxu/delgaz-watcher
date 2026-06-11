@@ -1,3 +1,5 @@
+use std::process::id;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use mqtt5::{MqttClient, MqttError};
@@ -191,6 +193,56 @@ impl Report {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct HaDevice {
+    identifiers: Vec<&'static str>,
+    name: &'static str,
+    manufacturer: &'static str,
+    model: &'static str,
+}
+impl HaDevice {
+    pub fn new() -> Self {
+        HaDevice {
+            identifiers: vec!["delgaz_watcher"],
+            name: "Delgaz Watcher",
+            manufacturer: "robiXxu (Robert Schiriac)",
+            model: "Delgaz Outage Monito,r"
+        }
+    }
+    
+}
+
+#[derive(Debug,Serialize)]
+struct HaDiscoveryConfig {
+    name: &'static str,
+    object_id: &'static str,
+    unique_id: &'static str,
+    state_topic: String,
+    value_template: &'static str,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon: Option<&'static str>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measurement: Option<&'static str>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state_class: Option<&'static str>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_class: Option<&'static str>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload_on: Option<&'static str>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload_off: Option<&'static str>,
+
+    device: HaDevice,
+}
+impl HaDiscoveryConfig {
+}
+
 #[derive(Debug)]
 pub struct MqttConfig {
     pub client_id: String,
@@ -219,7 +271,8 @@ impl MqttPublisher {
                 _ => None,
             };
             if !payload.is_none() {
-                self.client.publish(format!("{}/raw", &self.config.topic), payload.unwrap()).await?;
+                let state_topic = format!("{}/state", &self.config.topic);
+                self.client.publish(&state_topic, payload.unwrap()).await?;
 
                 let publish_options = mqtt5::PublishOptions {
                     qos: mqtt5::QoS::AtLeastOnce,
@@ -237,10 +290,16 @@ impl MqttPublisher {
                     skip_codec: true
                 };
 
-                self.client.publish_with_options(format!("{}/total_outages", &self.config.topic), serde_json::to_string(&report.total_outages).unwrap(), publish_options.clone()).await?;
-                self.client.publish_with_options(format!("{}/nearest_distance_m", &self.config.topic), serde_json::to_string(&report.nearest_distance_m).unwrap(), publish_options.clone()).await?;
-                self.client.publish_with_options(format!("{}/nearest_proximity", &self.config.topic), serde_json::to_string(&report.nearest_proximity).unwrap(), publish_options.clone()).await?;
-                self.client.publish_with_options(format!("{}/nearest_street", &self.config.topic), serde_json::to_string(&report.nearest_street).unwrap(), publish_options).await?;
+                // self.client.publish_with_options("homeassistant/sensor/delgaz_total_outages/config", serde_json::to_string(&TotalOutagesEntity {
+                //     name: "Delgaz Total Outages",
+                //     object_id: "delgaz_total_outages",
+                //     state_topic: state_topic.clone(),
+                //     value_template: "{{ value_json.total_outages }}"
+                // }).unwrap(), publish_options.clone()).await?;
+
+                // self.client.publish_with_options(format!("{}/nearest_distance_m", &self.config.topic), serde_json::to_string(&report.nearest_distance_m).unwrap(), publish_options.clone()).await?;
+                // self.client.publish_with_options(format!("{}/nearest_proximity", &self.config.topic), serde_json::to_string(&report.nearest_proximity).unwrap(), publish_options.clone()).await?;
+                // self.client.publish_with_options(format!("{}/nearest_street", &self.config.topic), serde_json::to_string(&report.nearest_street).unwrap(), publish_options).await?;
             }
         }
 
