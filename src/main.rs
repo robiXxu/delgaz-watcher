@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     loop {
         interval.tick().await;
-        println!("Checking outages");
+        println!("Checking outages every {} minutes", sleep_duration);
 
         let result = async {
             let outages: Vec<Outage> = reqwest::get(API_URL)

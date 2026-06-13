@@ -1,4 +1,4 @@
-use std::process::id;
+use core::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -206,41 +206,90 @@ impl HaDevice {
             identifiers: vec!["delgaz_watcher"],
             name: "Delgaz Watcher",
             manufacturer: "robiXxu (Robert Schiriac)",
-            model: "Delgaz Outage Monito,r"
+            model: "Delgaz Outage Monitor"
         }
     }
     
 }
 
-#[derive(Debug,Serialize)]
+#[derive(Debug, Serialize)]
+enum HaComponentType {
+    #[serde(rename = "binary_sensor")]
+    BinarySensor,
+    #[serde(rename = "fan")]
+    Fan,
+    #[serde(rename = "light")]
+    Light,
+    #[serde(rename = "sensor")]
+    Sensor,
+    #[serde(rename = "switch")]
+    Switch,
+}
+impl fmt::Display for HaComponentType{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HaComponentType::BinarySensor => write!(f, "binary_sensor"),
+            HaComponentType::Sensor => write!(f, "sensor"),
+            HaComponentType::Fan => write!(f, "fan"),
+            HaComponentType::Light => write!(f, "light"),
+            HaComponentType::Switch => write!(f, "switch"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 struct HaDiscoveryConfig {
-    name: &'static str,
-    object_id: &'static str,
-    unique_id: &'static str,
+    name: String,
+    object_id: String,
+    unique_id: String,
     state_topic: String,
-    value_template: &'static str,
+    value_template: String,
+    component: HaComponentType,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    icon: Option<&'static str>,
+    icon: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    unit_of_measurement: Option<&'static str>,
+    unit_of_measurement: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    state_class: Option<&'static str>,
+    state_class: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    device_class: Option<&'static str>,
+    device_class: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    payload_on: Option<&'static str>,
+    payload_on: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    payload_off: Option<&'static str>,
+    payload_off: Option<String>,
 
     device: HaDevice,
 }
 impl HaDiscoveryConfig {
+    fn new(name: &str, object_id: &str, component: HaComponentType, value_template: &str, icon: &str, state_topic: &str) -> HaDiscoveryConfig {
+        HaDiscoveryConfig {
+            name: name.to_string(),
+            object_id: object_id.to_lowercase(),
+            unique_id: object_id.to_lowercase(),
+            component,
+            state_topic: state_topic.to_string(),
+            value_template: value_template.to_string(),
+            icon: Some(icon.to_string()),
+            unit_of_measurement: None,
+            state_class: None,
+            device_class: None,
+            payload_on: None,
+            payload_off: None,
+            device: HaDevice::new()
+        }
+    }
+
+    pub fn discovery_topic(&self) -> String {  
+        let topic = format!("homeassistant/{}/{}/config", &self.component, &self.object_id);
+        println!("TOPIC: {}", topic);
+        topic
+    }
 }
 
 #[derive(Debug)]
@@ -264,6 +313,7 @@ impl MqttPublisher {
         self.client.connect(&self.config.url).await
     }
 
+
     pub async fn publish(&self, report: &Report) -> Result<(), Box<dyn std::error::Error>> {
         if self.client.is_connected().await {
             let payload: Option<String> = match serde_json::to_string(report) {
@@ -272,7 +322,7 @@ impl MqttPublisher {
             };
             if !payload.is_none() {
                 let state_topic = format!("{}/state", &self.config.topic);
-                self.client.publish(&state_topic, payload.unwrap()).await?;
+                let payload = payload.unwrap();
 
                 let publish_options = mqtt5::PublishOptions {
                     qos: mqtt5::QoS::AtLeastOnce,
@@ -290,16 +340,104 @@ impl MqttPublisher {
                     skip_codec: true
                 };
 
-                // self.client.publish_with_options("homeassistant/sensor/delgaz_total_outages/config", serde_json::to_string(&TotalOutagesEntity {
-                //     name: "Delgaz Total Outages",
-                //     object_id: "delgaz_total_outages",
-                //     state_topic: state_topic.clone(),
-                //     value_template: "{{ value_json.total_outages }}"
-                // }).unwrap(), publish_options.clone()).await?;
+                self.client.publish_with_options(&state_topic, payload.clone(), publish_options.clone()).await?;
 
-                // self.client.publish_with_options(format!("{}/nearest_distance_m", &self.config.topic), serde_json::to_string(&report.nearest_distance_m).unwrap(), publish_options.clone()).await?;
-                // self.client.publish_with_options(format!("{}/nearest_proximity", &self.config.topic), serde_json::to_string(&report.nearest_proximity).unwrap(), publish_options.clone()).await?;
-                // self.client.publish_with_options(format!("{}/nearest_street", &self.config.topic), serde_json::to_string(&report.nearest_street).unwrap(), publish_options).await?;
+                let entity = HaDiscoveryConfig{
+                    state_class: Some("measurement".to_string()),
+                    ..HaDiscoveryConfig::new(
+                        "Delgaz Total Outages",
+                        "delgaz_total_outages",
+                        HaComponentType::Sensor,
+                        "{{ value_json.total_outages }}",
+                        "mdi:power-plug-off-outline",
+                        &state_topic,
+                    )
+                };
+
+                self.client.publish_with_options(
+                    &entity.discovery_topic(),
+                    serde_json::to_string(&entity).unwrap(),
+                    publish_options.clone()
+                ).await?;
+
+                let entity = HaDiscoveryConfig{
+                    unit_of_measurement: Some("m".to_string()),
+                    state_class: Some("measurement".to_string()),
+                    device_class: Some("distance".to_string()),
+                    ..HaDiscoveryConfig::new(
+                        "Delgaz Nearest Distance",
+                        "delgaz_nearest_distance",
+                        HaComponentType::Sensor,
+                        "{{ value_json.nearest_distance_m }}",
+                        "mdi:map-marker-distance",
+                        &state_topic,
+                    )
+                };
+
+                self.client.publish_with_options(
+                    &entity.discovery_topic(),
+                    serde_json::to_string(&entity).unwrap(),
+                    publish_options.clone()
+                ).await?;
+
+
+                let entity = HaDiscoveryConfig{
+                    ..HaDiscoveryConfig::new(
+                        "Delgaz Outage",
+                        "delgaz_outage",
+                        HaComponentType::Sensor,
+                        "{{ 'Yes' if (value_json.total_outages | int(0)) > 0 else 'No' }}",
+                        "mdi:alert-circle",
+                        &state_topic,
+                    )
+                };
+
+
+                self.client.publish_with_options(
+                    &entity.discovery_topic(),
+                    serde_json::to_string(&entity).unwrap(),
+                    publish_options.clone()
+                ).await?;
+
+                let entity = HaDiscoveryConfig{
+                    unit_of_measurement: Some("m".to_string()),
+                    state_class: Some("measurement".to_string()),
+                    device_class: Some("distance".to_string()),
+                    ..HaDiscoveryConfig::new(
+                        "Delgaz Outage Proximity",
+                        "delgaz_outage_proximity",
+                        HaComponentType::Sensor,
+                        "{{ value_json.nearest_proximity }}",
+                        "mdi:vector-link",
+                        &state_topic,
+                    )
+                };
+
+                self.client.publish_with_options(
+                    &entity.discovery_topic(),
+                    serde_json::to_string(&entity).unwrap(),
+                    publish_options.clone()
+                ).await?;
+
+                let entity = HaDiscoveryConfig{
+                    state_class: Some("measurement".to_string()),
+                    device_class: Some("distance".to_string()),
+                    ..HaDiscoveryConfig::new(
+                        "Delgaz Outage Street",
+                        "delgaz_outage_street",
+                        HaComponentType::Sensor,
+                        "{{ value_json.nearest_street }}",
+                        "mdi:road-variant",
+                        &state_topic,
+                    )
+                };
+
+                self.client.publish_with_options(
+                    &entity.discovery_topic(),
+                    serde_json::to_string(&entity).unwrap(),
+                    publish_options.clone()
+                ).await?;
+
             }
         }
 
